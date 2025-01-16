@@ -1,17 +1,23 @@
 """functions for getting statistics about courses"""
 from __future__ import annotations
 
+from datetime import date
 from typing import Dict
 
 from common.djangoapps.student.models import CourseEnrollment
-from django.db.models import BooleanField, Case, CharField, Count, Q, Sum, Value, When
+from django.db.models import Case, CharField, Count, Q, Sum, Value, When
 from django.db.models.functions import Coalesce, Lower
 from django.db.models.query import QuerySet
 from django.utils.timezone import now
 
 from futurex_openedx_extensions.dashboard.details.courses import annotate_courses_rating_queryset
 from futurex_openedx_extensions.helpers.constants import COURSE_STATUSES
-from futurex_openedx_extensions.helpers.querysets import check_staff_exist_queryset, get_base_queryset_courses
+from futurex_openedx_extensions.helpers.extractors import get_valid_duration
+from futurex_openedx_extensions.helpers.querysets import (
+    annotate_period,
+    check_staff_exist_queryset,
+    get_base_queryset_courses,
+)
 
 
 def get_courses_count(
@@ -38,6 +44,41 @@ def get_courses_count(
     ).order_by(Lower('org'))
 
 
+def _get_enrollments_count(
+    fx_permission_info: dict,
+    visible_filter: bool | None = True,
+    active_filter: bool | None = None,
+    include_staff: bool = False,
+) -> QuerySet:
+    """
+    Get the count of courses in the given tenants
+
+    :param fx_permission_info: Dictionary containing permission information
+    :type fx_permission_info: dict
+    :param visible_filter: Value to filter courses on catalog visibility. None means no filter.
+    :type visible_filter: bool | None
+    :param active_filter: Value to filter courses on active status. None means no filter.
+    :type active_filter: bool | None
+    :param include_staff: Value to include staff users in the count. False means exclude staff users.
+    :type include_staff: bool
+    :return: QuerySet of courses count per organization
+    :rtype: QuerySet
+    """
+    q_set = CourseEnrollment.objects.filter(
+        course_id__in=get_base_queryset_courses(
+            fx_permission_info, visible_filter=visible_filter, active_filter=active_filter
+        ).values_list('id', flat=True),
+        is_active=True,
+    ).exclude(
+        Q(user__is_active=False) | Q(user__is_staff=True) | Q(user__is_superuser=True)
+    )
+
+    if not include_staff:
+        q_set = q_set.exclude(check_staff_exist_queryset('user_id', 'course__org', 'course_id'))
+
+    return q_set
+
+
 def get_enrollments_count(
     fx_permission_info: dict,
     visible_filter: bool | None = True,
@@ -58,25 +99,61 @@ def get_enrollments_count(
     :return: QuerySet of courses count per organization
     :rtype: QuerySet
     """
-    if include_staff:
-        is_staff_queryset = Q(Value(False, output_field=BooleanField()))
-    else:
-        is_staff_queryset = check_staff_exist_queryset('user_id', 'course__org', 'course_id')
-
-    q_set = CourseEnrollment.objects.filter(
-        course_id__in=get_base_queryset_courses(
-            fx_permission_info, visible_filter=visible_filter, active_filter=active_filter
-        ).values_list('id', flat=True),
-        is_active=True,
-    ).exclude(
-        Q(user__is_active=False) | Q(user__is_staff=True) | Q(user__is_superuser=True)
-    ).exclude(
-        is_staff_queryset
+    q_set = _get_enrollments_count(
+        fx_permission_info, visible_filter=visible_filter, active_filter=active_filter, include_staff=include_staff,
     )
 
     return q_set.values(org_lower_case=Lower('course__org')).annotate(
         enrollments_count=Count('id')
     ).order_by(Lower('course__org'))
+
+
+def get_enrollments_count_aggregated(  # pylint: disable=too-many-arguments
+    fx_permission_info: dict,
+    visible_filter: bool | None = True,
+    active_filter: bool | None = None,
+    include_staff: bool = False,
+    aggregate_period: str = 'month',
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> QuerySet:
+    """
+    Get the count of enrollments in the given tenants aggregated by period. The query will return a limited number of
+    period values, depending on the date range and the period.
+
+    :param fx_permission_info: Dictionary containing permission information
+    :type fx_permission_info: dict
+    :param visible_filter: Value to filter courses on catalog visibility. None means no filter.
+    :type visible_filter: bool | None
+    :param active_filter: Value to filter courses on active status. None means no filter.
+    :type active_filter: bool | None
+    :param include_staff: Value to include staff users in the count. False means exclude staff users.
+    :type include_staff: bool
+    :param aggregate_period: Period to aggregate the count of enrollments. Possible values are 'day', 'week', 'month'.
+    :type aggregate_period: str
+    :param date_from: Start date to filter enrollments (inclusive). None means no filter.
+    :type date_from: date | None
+    :param date_to: End date to filter enrollments (inclusive). None means no filter.
+    :type date_to: date | None
+    """
+    date_from, date_to = get_valid_duration(aggregate_period, date_from, date_to)
+
+    q_set = _get_enrollments_count(
+        fx_permission_info, visible_filter=visible_filter, active_filter=active_filter, include_staff=include_staff,
+    )
+
+    if date_from:
+        q_set = q_set.filter(created__gte=date_from)
+    if date_to:
+        q_set = q_set.filter(created__lte=date_to)
+
+    q_set = annotate_period(q_set, aggregate_period, 'created')
+
+    q_set = q_set.values('period').annotate(
+        enrollments_count=Count('id')
+    ).order_by('period')
+
+    return q_set
 
 
 def get_courses_count_by_status(

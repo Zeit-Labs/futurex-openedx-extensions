@@ -9,11 +9,12 @@ deepdiff                        # for deep comparison of objects
 numpy                           # required by deepdiff
 pytest-cov                      # pytest extension for code coverage statistics
 pytest-django                   # pytest extension for better Django support
+types-python-dateutil           # needed for mypy to understand python-dateutil
 
 # Nelc specific requirements
 eox-tenant
 
-# edx-platform related requirements. Pinned to the versions used in Palm.
+# edx-platform related requirements
 edx-api-doc-tools
 edx-opaque-keys[django]
 djangorestframework

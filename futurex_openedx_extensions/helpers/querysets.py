@@ -1,11 +1,21 @@
 """Helper functions for working with Django querysets."""
 from __future__ import annotations
 
-from typing import List
+from typing import Any, List
 
 from common.djangoapps.student.models import CourseAccessRole, CourseEnrollment, UserSignupSource
 from django.contrib.auth import get_user_model
-from django.db.models import BooleanField, Case, Count, Exists, OuterRef, Q, Value, When
+from django.db.models import BooleanField, Case, CharField, Count, Exists, F, OuterRef, Q, Value, When
+from django.db.models.functions import (
+    Cast,
+    Concat,
+    ExtractDay,
+    ExtractMonth,
+    ExtractQuarter,
+    ExtractWeek,
+    ExtractYear,
+    Right,
+)
 from django.db.models.query import QuerySet
 from django.utils.timezone import now
 from opaque_keys.edx.django.models import CourseKeyField
@@ -384,3 +394,63 @@ def get_one_user_queryset(
         )
 
     return queryset
+
+
+def annotate_period(query_set: QuerySet, period: str, field_name: str) -> QuerySet:
+    """
+    Annotate the queryset with the given period.
+
+    :param query_set: QuerySet to annotate
+    :type query_set: QuerySet
+    :param period: Period to annotate by
+    :type period: str
+    :param field_name: Field name to annotate
+    :type field_name: str
+    :return: Annotated queryset
+    """
+    def _zero_pad(field: Any) -> Any:
+        """Ensures extracted integers (day, month, week) are zero-padded to 2 digits."""
+        return Right(Concat(Value('0'), Cast(field, CharField())), 2)
+
+    match period:
+        case 'day':
+            period_function = Concat(
+                Cast(ExtractYear(F(field_name)), CharField()),
+                Value('-'),
+                _zero_pad(ExtractMonth(F(field_name))),
+                Value('-'),
+                _zero_pad(ExtractDay(F(field_name))),
+                output_field=CharField(),
+            )
+        case 'week':
+            period_function = Concat(
+                Cast(ExtractYear(F(field_name)), CharField()),
+                Value('-W'),
+                _zero_pad(ExtractWeek(F(field_name))),
+                output_field=CharField(),
+            )
+        case 'month':
+            period_function = Concat(
+                Cast(ExtractYear(F(field_name)), CharField()),
+                Value('-'),
+                _zero_pad(ExtractMonth(F(field_name))),
+                output_field=CharField(),
+            )
+        case 'quarter':
+            period_function = Concat(
+                Cast(ExtractYear(F(field_name)), CharField()),
+                Value('-Q'),
+                Cast(ExtractQuarter(F(field_name)), CharField()),
+                output_field=CharField(),
+            )
+        case 'year':
+            period_function = Cast(ExtractYear(F(field_name)), CharField())
+        case _:
+            raise FXCodedException(
+                code=FXExceptionCodes.INVALID_INPUT,
+                message=f'Invalid aggregate_period ({period})',
+            )
+
+    return query_set.annotate(
+        period=period_function,
+    )

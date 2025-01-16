@@ -45,6 +45,11 @@ urlpatterns = [
     re_path(r'^api/fx/statistics/v1/rating/$', views.GlobalRatingView.as_view(), name='statistics-rating'),
     re_path(r'^api/fx/statistics/v1/total_counts/$', views.TotalCountsView.as_view(), name='total-counts'),
     re_path(
+        r'^api/fx/statistics/v1/aggregated_counts/$',
+        views.AggregatedCountsView.as_view(),
+        name='aggregated-counts',
+    ),
+    re_path(
         fr'^api/fx/query/v1/(?P<scope>{QUERY_ALLOWED_SCOPES})/(?P<slug>{CLICKHOUSE_QUERY_SLUG_PATTERN})/$',
         views.ClickhouseQueryView.as_view(),
         name='clickhouse-query'

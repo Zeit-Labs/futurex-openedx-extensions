@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Callable, Dict, List
 from urllib.parse import urljoin
 
-from dateutil.relativedelta import relativedelta  # type: ignore
+from dateutil.relativedelta import relativedelta
 
 from futurex_openedx_extensions.helpers import constants as cs
 
