@@ -81,7 +81,7 @@ class TestTotalCountsView(BaseTestViewMixin):
         self.login_user(self.staff_user)
         response = self.client.get(self.url + '?stats=invalid')
         self.assertEqual(response.status_code, http_status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data, {'reason': 'Invalid stats type', 'details': {'invalid': ['invalid']}})
+        self.assertEqual(str(response.data['detail']), "Invalid stats type: ['invalid']")
 
     def test_all_stats(self):
         """Test get method"""

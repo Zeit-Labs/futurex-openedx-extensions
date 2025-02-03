@@ -4,7 +4,8 @@ from unittest.mock import Mock, patch
 import pytest
 from common.djangoapps.student.models import CourseAccessRole, UserProfile
 from django.contrib.auth import get_user_model
-from django.db.models import Count
+from django.db.models import Count, QuerySet
+from lms.djangoapps.certificates.models import GeneratedCertificate
 from openedx.core.djangoapps.content.course_overviews.models import CourseOverview
 
 from futurex_openedx_extensions.helpers import querysets
@@ -382,3 +383,75 @@ def test_clear_removable_annotations():
 
     querysets.clear_removable_annotations(queryset)
     assert not hasattr(queryset, 'removable_annotations')
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize('period, expected_result', [
+    ('day', [
+        ('2024-08-16', 1),
+        ('2024-08-27', 2),
+        ('2024-09-07', 2),
+        ('2024-09-18', 2),
+        ('2024-09-29', 2),
+        ('2024-10-10', 2),
+        ('2024-10-21', 2),
+        ('2024-11-01', 2),
+        ('2024-11-12', 2),
+        ('2024-11-23', 2),
+        ('2024-12-04', 2),
+        ('2024-12-15', 2),
+        ('2024-12-26', 2),
+    ]),
+    ('week', [
+        ('2024-W33', 1),
+        ('2024-W35', 2),
+        ('2024-W36', 2),
+        ('2024-W38', 2),
+        ('2024-W39', 2),
+        ('2024-W41', 2),
+        ('2024-W43', 2),
+        ('2024-W44', 2),
+        ('2024-W46', 2),
+        ('2024-W47', 2),
+        ('2024-W49', 2),
+        ('2024-W50', 2),
+        ('2024-W52', 2),
+    ]),
+    ('month', [
+        ('2024-08', 3),
+        ('2024-09', 6),
+        ('2024-10', 4),
+        ('2024-11', 6),
+        ('2024-12', 6),
+    ]),
+    ('quarter', [('2024-Q3', 9), ('2024-Q4', 16)]),
+    ('year', [('2024', 25)]),
+])
+def test_annotate_period_valid(period, expected_result):
+    """Verify annotate_period function for happy scenarios."""
+    sample_queryset = GeneratedCertificate.objects.all()
+
+    annotated_queryset = querysets.annotate_period(sample_queryset, period, 'created_date')
+    annotated_queryset = annotated_queryset.values('period').annotate(
+        certificates_count=Count('id')
+    ).order_by('period')
+
+    assert isinstance(annotated_queryset, QuerySet)
+    assert annotated_queryset.count() == len(expected_result)
+    for i, result in enumerate(annotated_queryset):
+        assert result['period'] == expected_result[i][0]
+        assert result['certificates_count'] == expected_result[i][1]
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'period', ['invalid_period', 'hour', 'minute']
+)
+def test_annotate_period_invalid_period(period):
+    """Verify that annotate_period function raises an exception for invalid period."""
+    sample_queryset = GeneratedCertificate.objects.all()
+    with pytest.raises(FXCodedException) as exc_info:
+        querysets.annotate_period(sample_queryset, period, 'created_date')
+
+    assert exc_info.value.code == FXExceptionCodes.INVALID_INPUT.value
+    assert f'Invalid aggregate_period ({period})' in str(exc_info.value)

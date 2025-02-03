@@ -79,6 +79,7 @@ class GeneratedCertificate(models.Model):
     user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
     course_id = CourseKeyField(max_length=255, blank=True, default=None)
     status = models.CharField(max_length=32, default='unavailable')
+    created_date = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         unique_together = (('user', 'course_id'),)

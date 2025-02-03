@@ -1,4 +1,5 @@
 """PyTest fixtures for tests."""
+import datetime
 from unittest.mock import patch
 
 import pytest
@@ -250,14 +251,19 @@ def base_data(django_db_setup, django_db_blocker):  # pylint: disable=unused-arg
 
     def _create_certificates():
         """Create certificates."""
+        created_date = datetime.date(2024, 12, 26)
         for org, courses in _base_data['certificates'].items():
             for course_id, user_ids in courses.items():
                 for user_id in user_ids:
-                    GeneratedCertificate.objects.create(
+                    certificate = GeneratedCertificate.objects.create(
                         user_id=user_id,
                         course_id=_get_course_id(org, course_id),
                         status='downloadable',
                     )
+                    certificate.created_date = created_date
+                    certificate.save()
+                    if GeneratedCertificate.objects.count() % 2 == 0:
+                        created_date -= datetime.timedelta(days=11)
 
     with django_db_blocker.unblock():
         _create_users()
