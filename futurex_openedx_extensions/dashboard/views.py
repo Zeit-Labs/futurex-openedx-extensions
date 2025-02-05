@@ -445,6 +445,30 @@ class AccessibleTenantsInfoView(APIView):
         return JsonResponse(get_tenants_info(tenant_ids))
 
 
+@docs('AccessibleTenantsInfoViewV2.get')
+class AccessibleTenantsInfoViewV2(FXViewRoleInfoMixin, APIView):
+    """View to get the list of accessible tenants version 2"""
+    permission_classes = [FXHasTenantCourseAccess]
+    fx_view_name = 'accessible_info'
+    fx_view_description = '/api/fx/accessible/v2/info/: Get accessible tenants'
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> JsonResponse:  # pylint: disable=no-self-use
+        """
+        GET /api/fx/accessible/v1/info/?username_or_email=<usernameOrEmail>
+        """
+        username_or_email = request.query_params.get('username_or_email')
+        try:
+            user = get_user_by_username_or_email(username_or_email)
+        except ObjectDoesNotExist:
+            user = None
+
+        if not user:
+            return JsonResponse({})
+
+        tenant_ids = get_accessible_tenant_ids(user)
+        return JsonResponse(get_tenants_info(tenant_ids))
+
+
 @docs('LearnersDetailsForCourseView.get')
 class LearnersDetailsForCourseView(ExportCSVMixin, FXViewRoleInfoMixin, ListAPIView):
     """View to get the list of learners for a course"""

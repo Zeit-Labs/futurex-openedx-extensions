@@ -296,7 +296,7 @@ docs_src = {
     'AccessibleTenantsInfoView.get': {
         'summary': 'Get information about accessible tenants for a user',
         'description': 'Get information about accessible tenants for a user. The caller must be a staff user or an'
-        ' anonymous user.',
+        ' anonymous user. \n**Note:** This API will is deprecated and will be removed in verison: v0.11.0.1.\n',
         'parameters': [
             query_parameter(
                 'username_or_email',
@@ -348,6 +348,65 @@ docs_src = {
                     },
                 },
             },
+            remove=[404]
+        ),
+    },
+
+    'AccessibleTenantsInfoViewV2.get': {
+        'summary': 'Get information about accessible tenants for a user (version-2)',
+        'description': 'Get information about accessible tenants for a user. The caller must have staff access',
+        'parameters': [
+            query_parameter(
+                'username_or_email',
+                str,
+                '(**required**) The username or email of the user to retrieve the accessible tenants for.'
+            ),
+        ],
+        'responses': responses(
+            success_description='The response is a JSON of the accessible tenant IDs as keys, and the tenant\'s'
+            ' information as values.',
+            success_schema=openapi.Schema(
+                type=openapi.TYPE_OBJECT,
+                description='The tenant ID',
+                additional_properties=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        'lms_root_url': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description='The LMS root URL of the tenant',
+                        ),
+                        'studio_root_url': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description='The Studio root URL of the tenant',
+                        ),
+                        'platform_name': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description='The platform name of the tenant',
+                        ),
+                        'logo_image_url': openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            description='The logo image URL of the tenant',
+                        )
+                    },
+                ),
+            ),
+            success_examples={
+                'application/json': {
+                    '1': {
+                        'lms_root_url': 'https://heroes.lms.com',
+                        'studio_root_url': 'https://studio.lms.com',
+                        'platform_name': 'Heroes Academy',
+                        'logo_image_url': 'https://www.s3.com/logo.png',
+                    },
+                    '4': {
+                        'lms_root_url': 'https://monsters.lms.com',
+                        'studio_root_url': 'https://studio.lms.com',
+                        'platform_name': 'Monsters Academy',
+                        'logo_image_url': 'https://www.s3.com/logo.png',
+                    },
+                },
+            },
+            remove=[404]
         ),
     },
 
