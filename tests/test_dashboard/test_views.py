@@ -1106,6 +1106,68 @@ class TestAccessibleTenantsInfoView(BaseTestViewMixin):
 
 
 @pytest.mark.usefixtures('base_data')
+class TestAccessibleTenantsInfoViewV2(BaseTestViewMixin):
+    """Tests for AccessibleTenantsInfoViewv2"""
+    VIEW_NAME = 'fx_dashboard:accessible-info-v2'
+
+    def test_permission_classes(self):
+        """Verify that the view has the correct permission classes"""
+        view_func, _, _ = resolve(self.url)
+        view_class = view_func.view_class
+        self.assertEqual(view_class.permission_classes, [FXHasTenantCourseAccess])
+
+    @patch('futurex_openedx_extensions.dashboard.views.get_user_by_username_or_email')
+    def test_success(self, mock_get_user):
+        """Verify that the view returns the correct response"""
+        mock_get_user.return_value = get_user_model().objects.get(username='user4')
+        self.login_user(self.staff_user)
+        response = self.client.get(self.url, data={'username_or_email': 'dummy, the user loader function is mocked'})
+        self.assertEqual(response.status_code, http_status.HTTP_200_OK)
+        self.assertDictEqual(json.loads(response.content), {
+            '1': {
+                'lms_root_url': 'https://s1.sample.com',
+                'studio_root_url': 'https://studio.example.com',
+                'platform_name': '', 'logo_image_url': ''
+            },
+            '2': {
+                'lms_root_url': 'https://s2.sample.com',
+                'studio_root_url': 'https://studio.example.com',
+                'platform_name': '', 'logo_image_url': ''
+            },
+            '7': {
+                'lms_root_url': 'https://s7.sample.com',
+                'studio_root_url': 'https://studio.example.com',
+                'platform_name': '', 'logo_image_url': ''
+            },
+        })
+
+        self.login_user(5)
+        response = self.client.get(self.url, data={'username_or_email': 'dummy'})
+        self.assertEqual(
+            response.status_code,
+            http_status.HTTP_403_FORBIDDEN,
+            f'Expected 403 for non staf users, but got {response.status_code}'
+        )
+
+    @patch('futurex_openedx_extensions.dashboard.views.get_user_by_username_or_email')
+    def test_no_username_or_email(self, mock_get_user):
+        """Verify that the view returns the correct response"""
+        self.login_user(self.staff_user)
+        mock_get_user.side_effect = get_user_model().DoesNotExist()
+        response = self.client.get(self.url)
+        mock_get_user.assert_called_once_with(None)
+        self.assertEqual(response.status_code, http_status.HTTP_200_OK)
+        self.assertDictEqual(json.loads(response.content), {})
+
+    def test_not_existing_username_or_email(self):
+        """Verify that the view returns the correct response"""
+        self.login_user(self.staff_user)
+        response = self.client.get(self.url, data={'username_or_email': 'dummy'})
+        self.assertEqual(response.status_code, http_status.HTTP_200_OK)
+        self.assertDictEqual(json.loads(response.content), {})
+
+
+@pytest.mark.usefixtures('base_data')
 class TestLearnersDetailsForCourseView(BaseTestViewMixin):
     """Tests for LearnersDetailsForCourseView"""
     VIEW_NAME = 'fx_dashboard:learners-course'
