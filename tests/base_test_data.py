@@ -5,7 +5,6 @@ _base_data = {
         1: {  # Organisations are duplicated with tenant 4 and 6
             'lms_configs': {
                 'LMS_BASE': 's1.sample.com',
-                'SITE_NAME': 's1.sample.com',
                 'course_org_filter': ['ORG1', 'ORG2', 'Org1'],
                 'IS_FX_DASHBOARD_ENABLED': True,
             },
@@ -19,15 +18,14 @@ _base_data = {
         },
         3: {
             'lms_configs': {
-                'SITE_NAME': 's3.sample.com',
+                'LMS_BASE': 's3.sample.com',
                 'course_org_filter': ['ORG4', 'ORG5'],
                 'IS_FX_DASHBOARD_ENABLED': True,
             },
         },
-        4: {  # This is a tenant with no SITE_NAME nor LMS_BASE
+        4: {  # This is a tenant with no LMS_BASE
             'lms_configs': {
                 'LMS_BASE': None,
-                'SITE_NAME': None,
                 'course_org_filter': ['ORG1', 'ORG2'],
                 'IS_FX_DASHBOARD_ENABLED': True,
             },
@@ -35,7 +33,6 @@ _base_data = {
         5: {  # This is a tenant with no course_org_filter
             'lms_configs': {
                 'LMS_BASE': 's5.sample.com',
-                'SITE_NAME': 's5.sample.com',
                 'course_org_filter': [],
                 'IS_FX_DASHBOARD_ENABLED': True,
             },
@@ -57,7 +54,6 @@ _base_data = {
         8: {
             'lms_configs': {
                 'LMS_BASE': 's8.sample.com',
-                'SITE_NAME': 's8.sample.com',
                 'course_org_filter': ['ORG8'],
                 'IS_FX_DASHBOARD_ENABLED': True,
             },

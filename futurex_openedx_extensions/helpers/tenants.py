@@ -25,10 +25,9 @@ def get_excluded_tenant_ids() -> List[int]:
         """Check if the tenant has a bad config"""
         return (
             tenant.no_route or
-            not tenant.lms_configs.get('course_org_filter') or (
-                not tenant.lms_configs.get('SITE_NAME') and
-                not tenant.lms_configs.get('LMS_BASE')
-            ) or not tenant.lms_configs.get('IS_FX_DASHBOARD_ENABLED', True)
+            not tenant.lms_configs.get('course_org_filter') or
+            not tenant.lms_configs.get('LMS_BASE') or
+            not tenant.lms_configs.get('IS_FX_DASHBOARD_ENABLED', True)
         )
     tenants = TenantConfig.objects.annotate(
         no_route=~Exists(Route.objects.filter(config_id=OuterRef('pk')))
@@ -89,7 +88,6 @@ def get_all_tenants_info() -> Dict[str, str | dict | List[int]]:
                 'lms_root_url': get_first_not_empty_item([
                     (tenant['lms_configs'].get('LMS_ROOT_URL') or '').strip(),
                     fix_lms_base((tenant['lms_configs'].get('LMS_BASE') or '').strip()),
-                    fix_lms_base((tenant['lms_configs'].get('SITE_NAME') or '').strip()),
                 ], default=''),
                 'studio_root_url': settings.CMS_ROOT_URL,
                 'platform_name': get_first_not_empty_item([

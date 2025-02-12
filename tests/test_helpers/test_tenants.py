@@ -139,7 +139,6 @@ def test_get_all_tenants_info(base_data):  # pylint: disable=unused-argument
 @pytest.mark.parametrize('config_key, info_key, test_value, expected_result', [
     ('LMS_BASE', 'lms_root_url', 'lms.example.com', 'https://lms.example.com'),
     ('LMS_ROOT_URL', 'lms_root_url', 'https://lms.example.com', 'https://lms.example.com'),
-    ('SITE_NAME', 'lms_root_url', 'lms.example.com', 'https://lms.example.com'),
     ('PLATFORM_NAME', 'platform_name', 'Test Platform', 'Test Platform'),
     ('platform_name', 'platform_name', 'Test Platform', 'Test Platform'),
     ('logo_image_url', 'logo_image_url', 'https://img.example.com/dummy.jpg', 'https://img.example.com/dummy.jpg'),
@@ -163,7 +162,7 @@ def test_get_all_tenants_info_configs(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('config_keys, data_prefix, call_index', [
-    (['LMS_ROOT_URL', 'LMS_BASE', 'SITE_NAME'], 'https://', 0),
+    (['LMS_ROOT_URL', 'LMS_BASE'], 'https://', 0),
     (['PLATFORM_NAME', 'platform_name'], '', 1),
 ])
 @patch(
