@@ -4,7 +4,7 @@ from unittest.mock import patch
 import pytest
 from django.core.cache import cache
 from django.test import override_settings
-from eox_tenant.models import TenantConfig
+from eox_tenant.models import Route, TenantConfig
 
 from futurex_openedx_extensions.helpers import constants as cs
 from futurex_openedx_extensions.helpers import tenants
@@ -15,6 +15,15 @@ def test_get_excluded_tenant_ids(base_data):  # pylint: disable=unused-argument
     """Verify get_excluded_tenant_ids function."""
     result = tenants.get_excluded_tenant_ids()
     assert result == [4, 5, 6]
+
+
+@pytest.mark.django_db
+def test_get_excluded_tenant_ids_more_than_one_tenant(base_data):  # pylint: disable=unused-argument
+    """Verify get_excluded_tenant_ids function when there is more than one tenant."""
+    Route.objects.create(config_id=1, domain='s1-new.sample.com')
+
+    result = tenants.get_excluded_tenant_ids()
+    assert result == [1, 4, 5, 6]
 
 
 @pytest.mark.django_db

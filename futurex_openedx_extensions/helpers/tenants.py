@@ -5,7 +5,7 @@ from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.db.models import Exists, OuterRef
+from django.db.models import Count
 from django.db.models.query import QuerySet
 from eox_tenant.models import Route, TenantConfig
 
@@ -24,13 +24,13 @@ def get_excluded_tenant_ids() -> List[int]:
     def bad_config(tenant: TenantConfig) -> bool:
         """Check if the tenant has a bad config"""
         return (
-            tenant.no_route or
+            tenant.routes_count != 1 or
             not tenant.lms_configs.get('course_org_filter') or
             not tenant.lms_configs.get('LMS_BASE') or
             not tenant.lms_configs.get('IS_FX_DASHBOARD_ENABLED', True)
         )
     tenants = TenantConfig.objects.annotate(
-        no_route=~Exists(Route.objects.filter(config_id=OuterRef('pk')))
+        routes_count=Count('route'),
     )
     return [tenant.id for tenant in tenants if bad_config(tenant)]
 
