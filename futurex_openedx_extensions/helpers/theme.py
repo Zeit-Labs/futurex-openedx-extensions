@@ -30,9 +30,8 @@ def get_fx_dashboard_url(request: Any) -> Optional[str]:
         CourseAccessRole.objects.filter(user_id=request.user.id).exists()
     ):
         lang = 'en' if request.LANGUAGE_CODE == 'en' else 'ar'
-        user_accessible_tenant_ids = get_accessible_tenant_ids(request.user)
-        tenant_info = get_all_tenants_info()
-        for tenant_id, site in tenant_info['sites'].items():
-            if site == request.site.domain and tenant_id in user_accessible_tenant_ids:
-                return f'{request.scheme}://{settings.NELC_DASHBOARD_BASE}/{lang}/{tenant_id}'
+        tenant_id = get_all_tenants_info()['tenant_by_site'].get(request.site.domain)
+        if tenant_id and tenant_id in get_accessible_tenant_ids(request.user):
+            return f'{request.scheme}://{settings.NELC_DASHBOARD_BASE}/{lang}/{tenant_id}'
+
     return None

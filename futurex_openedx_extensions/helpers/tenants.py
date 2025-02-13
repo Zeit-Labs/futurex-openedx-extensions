@@ -97,6 +97,9 @@ def get_all_tenants_info() -> Dict[str, str | dict | List[int]]:
                 'logo_image_url': (tenant['lms_configs'].get('logo_image_url') or '').strip(),
             } for tenant in info
         },
+        'tenant_by_site': {
+            tenant['route__domain']: tenant['id'] for tenant in info
+        },
     }
 
 
