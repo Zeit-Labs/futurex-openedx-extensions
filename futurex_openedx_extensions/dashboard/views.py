@@ -77,7 +77,7 @@ from futurex_openedx_extensions.helpers.roles import (
     get_usernames_with_access_roles,
     update_course_access_roles,
 )
-from futurex_openedx_extensions.helpers.tenants import get_tenants_info
+from futurex_openedx_extensions.helpers.tenants import get_excluded_tenant_ids, get_tenants_info
 from futurex_openedx_extensions.helpers.users import get_user_by_key
 
 default_auth_classes = FX_VIEW_DEFAULT_AUTH_CLASSES.copy()
@@ -998,6 +998,17 @@ class MyRolesView(FXViewRoleInfoMixin, APIView):
         data = serializers.UserRolesSerializer(self.fx_permission_info['user'], context={'request': request}).data
         data['is_system_staff'] = self.fx_permission_info['is_system_staff_user']
         return JsonResponse(data)
+
+
+@docs('ExcludedTenantsView.get')
+class ExcludedTenantsView(APIView):
+    """View to get the list of excluded tenants"""
+    authentication_classes = default_auth_classes
+    permission_classes = [IsSystemStaff]
+
+    def get(self, request: Any, *args: Any, **kwargs: Any) -> JsonResponse:  # pylint: disable=no-self-use
+        """Get the list of excluded tenants"""
+        return JsonResponse(get_excluded_tenant_ids())
 
 
 @exclude_schema_for('get')

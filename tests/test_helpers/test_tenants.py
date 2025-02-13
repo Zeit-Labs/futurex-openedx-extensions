@@ -4,32 +4,75 @@ from unittest.mock import patch
 import pytest
 from django.core.cache import cache
 from django.test import override_settings
-from eox_tenant.models import TenantConfig
+from eox_tenant.models import Route, TenantConfig
 
 from futurex_openedx_extensions.helpers import constants as cs
 from futurex_openedx_extensions.helpers import tenants
+from futurex_openedx_extensions.helpers.exceptions import FXExceptionCodes
+
+
+@pytest.fixture
+def expected_exclusion():
+    """Expected exclusion data."""
+    return {
+        4: [FXExceptionCodes.TENANT_HAS_NO_LMS_BASE.value],
+        5: [FXExceptionCodes.TENANT_COURSE_ORG_FILTER_NOT_VALID.value],
+        6: [FXExceptionCodes.TENANT_HAS_NO_SITE.value],
+    }
 
 
 @pytest.mark.django_db
-def test_get_excluded_tenant_ids(base_data):  # pylint: disable=unused-argument
+def test_get_excluded_tenant_ids(
+    base_data, expected_exclusion,
+):  # pylint: disable=unused-argument, redefined-outer-name
     """Verify get_excluded_tenant_ids function."""
     result = tenants.get_excluded_tenant_ids()
-    assert result == [4, 5, 6]
+    assert result == expected_exclusion
 
 
 @pytest.mark.django_db
-def test_get_excluded_tenant_ids_dashboard_disabled(base_data):  # pylint: disable=unused-argument
+def test_get_excluded_tenant_ids_more_than_one_tenant(
+    base_data, expected_exclusion,
+):  # pylint: disable=unused-argument, redefined-outer-name
+    """Verify get_excluded_tenant_ids function when there is more than one tenant."""
+    Route.objects.create(config_id=1, domain='s1-new.sample.com')
+
+    result = tenants.get_excluded_tenant_ids()
+    expected_exclusion.update({1: [FXExceptionCodes.TENANT_HAS_MORE_THAN_ONE_SITE.value]})
+    assert result == expected_exclusion
+
+
+@pytest.mark.django_db
+def test_get_excluded_tenant_ids_dashboard_disabled(
+    base_data, expected_exclusion,
+):  # pylint: disable=unused-argument, redefined-outer-name
     """Verify get_excluded_tenant_ids function when the dashboard is disabled."""
-    assert tenants.get_excluded_tenant_ids() == [4, 5, 6]
+    assert tenants.get_excluded_tenant_ids() == expected_exclusion
     tenant1 = TenantConfig.objects.get(id=1)
 
     tenant1.lms_configs['IS_FX_DASHBOARD_ENABLED'] = False
     tenant1.save()
-    assert tenants.get_excluded_tenant_ids() == [1, 4, 5, 6]
+    expected_exclusion.update({1: [FXExceptionCodes.TENANT_DASHBOARD_NOT_ENABLED.value]})
+    assert tenants.get_excluded_tenant_ids() == expected_exclusion
 
     tenant1.lms_configs.pop('IS_FX_DASHBOARD_ENABLED')
     tenant1.save()
-    assert tenants.get_excluded_tenant_ids() == [4, 5, 6]
+    expected_exclusion.pop(1)
+    assert tenants.get_excluded_tenant_ids() == expected_exclusion
+
+
+@pytest.mark.django_db
+def test_get_excluded_tenant_ids_lms_base_mismatch(
+    base_data, expected_exclusion,
+):  # pylint: disable=unused-argument, redefined-outer-name
+    """Verify get_excluded_tenant_ids function when the LMS base is not the same as the related domain."""
+    tenant1 = TenantConfig.objects.get(id=1)
+    tenant1.lms_configs['LMS_BASE'] = 's1-different.sample.com'
+    tenant1.save()
+
+    result = tenants.get_excluded_tenant_ids()
+    expected_exclusion.update({1: [FXExceptionCodes.TENANT_LMS_BASE_SITE_MISMATCH.value]})
+    assert result == expected_exclusion
 
 
 @pytest.mark.django_db
@@ -139,7 +182,6 @@ def test_get_all_tenants_info(base_data):  # pylint: disable=unused-argument
 @pytest.mark.parametrize('config_key, info_key, test_value, expected_result', [
     ('LMS_BASE', 'lms_root_url', 'lms.example.com', 'https://lms.example.com'),
     ('LMS_ROOT_URL', 'lms_root_url', 'https://lms.example.com', 'https://lms.example.com'),
-    ('SITE_NAME', 'lms_root_url', 'lms.example.com', 'https://lms.example.com'),
     ('PLATFORM_NAME', 'platform_name', 'Test Platform', 'Test Platform'),
     ('platform_name', 'platform_name', 'Test Platform', 'Test Platform'),
     ('logo_image_url', 'logo_image_url', 'https://img.example.com/dummy.jpg', 'https://img.example.com/dummy.jpg'),
@@ -163,7 +205,7 @@ def test_get_all_tenants_info_configs(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('config_keys, data_prefix, call_index', [
-    (['LMS_ROOT_URL', 'LMS_BASE', 'SITE_NAME'], 'https://', 0),
+    (['LMS_ROOT_URL', 'LMS_BASE'], 'https://', 0),
     (['PLATFORM_NAME', 'platform_name'], '', 1),
 ])
 @patch(
