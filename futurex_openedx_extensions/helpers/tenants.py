@@ -5,34 +5,55 @@ from typing import Any, Dict, List
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.db.models import Count
+from django.db.models import Count, OuterRef, Subquery
 from django.db.models.query import QuerySet
 from eox_tenant.models import Route, TenantConfig
 
 from futurex_openedx_extensions.helpers import constants as cs
 from futurex_openedx_extensions.helpers.caching import cache_dict
+from futurex_openedx_extensions.helpers.exceptions import FXExceptionCodes
 from futurex_openedx_extensions.helpers.extractors import get_first_not_empty_item
 
 
-def get_excluded_tenant_ids() -> List[int]:
+def get_excluded_tenant_ids() -> Dict[int, List[int]]:
     """
-    Get list of IDs of tenants excluded because they are not exposed in the route table, or have empty configs
+    Get dictionary of tenant IDs excluded for bad configuration, along with the reasons of exclusion
 
     :return: List of tenant IDs to exclude
-    :rtype: List[int]
+    :rtype: Dict[int, List[int]]
     """
-    def bad_config(tenant: TenantConfig) -> bool:
+    def check_bad_config(tenant: TenantConfig) -> List[int]:
         """Check if the tenant has a bad config"""
-        return (
-            tenant.routes_count != 1 or
-            not tenant.lms_configs.get('course_org_filter') or
-            not tenant.lms_configs.get('LMS_BASE') or
-            not tenant.lms_configs.get('IS_FX_DASHBOARD_ENABLED', True)
-        )
+        reasons = []
+        if tenant.routes_count == 0:
+            reasons.append(FXExceptionCodes.TENANT_HAS_NO_SITE.value)
+        if tenant.routes_count > 1:
+            reasons.append(FXExceptionCodes.TENANT_HAS_MORE_THAN_ONE_SITE.value)
+
+        if not tenant.lms_configs.get('LMS_BASE'):
+            reasons.append(FXExceptionCodes.TENANT_HAS_NO_LMS_BASE.value)
+        if not reasons and tenant.lms_configs['LMS_BASE'] != tenant.route_domain:
+            reasons.append(FXExceptionCodes.TENANT_LMS_BASE_SITE_MISMATCH.value)
+
+        if not tenant.lms_configs.get('IS_FX_DASHBOARD_ENABLED', True):
+            reasons.append(FXExceptionCodes.TENANT_DASHBOARD_NOT_ENABLED.value)
+
+        course_org_filter = tenant.lms_configs.get('course_org_filter')
+        if not course_org_filter or (
+            isinstance(course_org_filter, list) and not all(isinstance(org, str) for org in course_org_filter)
+        ) or (
+            isinstance(course_org_filter, str) and not course_org_filter.strip()
+        ):
+            reasons.append(FXExceptionCodes.TENANT_COURSE_ORG_FILTER_NOT_VALID.value)
+
+        return reasons
+
     tenants = TenantConfig.objects.annotate(
         routes_count=Count('route'),
+    ).annotate(
+        route_domain=Subquery(Route.objects.filter(config_id=OuterRef('pk')).values('domain')[:1]),
     )
-    return [tenant.id for tenant in tenants if bad_config(tenant)]
+    return {tenant.id: check_bad_config(tenant) for tenant in tenants if check_bad_config(tenant)}
 
 
 def get_all_tenants() -> QuerySet:

@@ -1649,6 +1649,33 @@ class TestUserRolesManagementView(BaseTestViewMixin):
         self.assertDictEqual(response.data, {'reason': 'the error message', 'details': {}})
 
 
+class TestExcludedTenantsView(BaseTestViewMixin):
+    """Tests for ExcludedTenantsView"""
+    VIEW_NAME = 'fx_dashboard:excluded-tenants'
+
+    def test_permission_classes(self):
+        """Verify that the view has the correct permission classes"""
+        view_func, _, _ = resolve(self.url)
+        view_class = view_func.view_class
+        self.assertEqual(view_class.permission_classes, [IsSystemStaff])
+
+    def test_unauthorized(self):
+        """Verify that the view returns 403 when the user is not authenticated"""
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, http_status.HTTP_403_FORBIDDEN)
+
+    def test_success(self):
+        """Verify that the view returns the correct response"""
+        self.login_user(self.staff_user)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, http_status.HTTP_200_OK)
+        self.assertEqual(json.loads(response.content), {
+            '4': [FXExceptionCodes.TENANT_HAS_NO_LMS_BASE.value],
+            '5': [FXExceptionCodes.TENANT_COURSE_ORG_FILTER_NOT_VALID.value],
+            '6': [FXExceptionCodes.TENANT_HAS_NO_SITE.value],
+        })
+
+
 @ddt.ddt
 class TestClickhouseQueryView(MockPatcherMixin, BaseTestViewMixin):
     """Tests for ClickhouseQueryView"""

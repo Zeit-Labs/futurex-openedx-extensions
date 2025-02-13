@@ -21,6 +21,7 @@ export_router.register(r'tasks', views.DataExportManagementView, basename='data-
 urlpatterns = [
     re_path(r'^api/fx/accessible/v1/info/$', views.AccessibleTenantsInfoView.as_view(), name='accessible-info'),
     re_path(r'^api/fx/courses/v1/courses/$', views.CoursesView.as_view(), name='courses'),
+    re_path(r'^api/fx/export/v1/', include(export_router.urls)),
     re_path(r'^api/fx/learners/v1/learners/$', views.LearnersView.as_view(), name='learners'),
     re_path(
         fr'^api/fx/learners/v1/learners/{COURSE_ID_REGX}/$',
@@ -40,7 +41,6 @@ urlpatterns = [
     ),
     re_path(r'^api/fx/roles/v1/my_roles/$', views.MyRolesView.as_view(), name='my-roles'),
     re_path(r'^api/fx/roles/v1/', include(roles_router.urls)),
-    re_path(r'^api/fx/export/v1/', include(export_router.urls)),
     re_path(r'^api/fx/statistics/v1/course_statuses/$', views.CourseStatusesView.as_view(), name='course-statuses'),
     re_path(r'^api/fx/statistics/v1/rating/$', views.GlobalRatingView.as_view(), name='statistics-rating'),
     re_path(r'^api/fx/statistics/v1/total_counts/$', views.TotalCountsView.as_view(), name='total-counts'),
@@ -49,6 +49,7 @@ urlpatterns = [
         views.AggregatedCountsView.as_view(),
         name='aggregated-counts',
     ),
+    re_path(r'^api/fx/tenants/v1/excluded', views.ExcludedTenantsView.as_view(), name='excluded-tenants'),
     re_path(
         fr'^api/fx/query/v1/(?P<scope>{QUERY_ALLOWED_SCOPES})/(?P<slug>{CLICKHOUSE_QUERY_SLUG_PATTERN})/$',
         views.ClickhouseQueryView.as_view(),

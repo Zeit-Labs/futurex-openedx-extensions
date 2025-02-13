@@ -589,6 +589,26 @@ docs_src = {
         ),
     },
 
+    'ExcludedTenantsView.get': {
+        'summary': 'Get the list of tenants that are excluded from the dashboard APIs',
+        'description': 'Get the list of tenants that are excluded from the dashboard APIs. The response will include'
+        ' the tenant IDs and the reason for exclusion.\n'
+        '\n**Only system staff users can access this API.**\n\n'
+        'The following are the possible reason codes:\n\n'
+        '-----------------------------------------------------\n'
+        '| Code | Description |\n'
+        '|------|-------------|\n'
+        '| 10002 | the tenant is not being used by any site route |\n'
+        '| 10003 | the tenant is being used by more than one site route |\n'
+        '| 10004 | `LMS_BASE` is missing the tenant\'s `lms_config` settings |\n'
+        '| 10005 | the value of `LMS_BASE` in the tenant\'s `lms_config` settings does not match the `domain` value'
+        ' of the related site route |\n'
+        '| 10006 | the dashboard is explicitly disabled for this tenant ('
+        '`lms_config["IS_FX_DASHBOARD_ENABLED"]` is explicitly to `False`) |\n'
+        '| 10007 | `course_config_filter` is missing or not valid the tenant\'s `lms_config` settings |\n'
+        '-----------------------------------------------------\n',
+    },
+
     'LearnerCoursesView.get': {
         'summary': 'Get the list of courses for a specific learner',
         'description': 'Get the list of courses (regardless of course visibility) for a specific learner using the'
